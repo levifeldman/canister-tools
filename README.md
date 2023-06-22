@@ -1,4 +1,4 @@
-#  CANTOOLS
+#  canister-tools
 
 ### A Rust library for canisters on the [internet-computer](https://internet-computer.org). 
 
