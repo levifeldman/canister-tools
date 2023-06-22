@@ -1,8 +1,17 @@
 [package]
-name = "cantools"
+name = "canister-tools"
 version = "0.1.0"
 edition = "2021"
 authors = ["Levi Feldman <levifeldman37@gmail.com>"]
+description = "Tools for the canisters on the internet-computer, featuring simple upgrades and data safety state snapshot upload/download features."
+readme = "README.md"
+homepage = "https://docs.rs/cantools"
+repository = "https://github.com/levifeldman/cantools/"
+license-file = "LICENSE.txt"
+keywords = ["internet-computer", "canister", "upgrade", "tools", "data-management"]
+categories = ["cryptography::cryptocurrencies", "data-structures", "memory-management", "rust-patterns", "wasm"]
+
+
 
 [dependencies]
 ic-cdk = "0.8.1"

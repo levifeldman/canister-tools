@@ -31,7 +31,8 @@ use serde::{Serialize, Deserialize};
 use crate::localkey::refcell::{with, with_mut};
 
 
-
+/// A trait that specifies how the data structure will be serialized for the upgrades and for the snapshots.
+/// This trait is implemented with the message-pack serialization format for any structure that implements serde's Serialize and Deserialize traits.
 pub trait Serializable {
     fn forward(&self) -> Result<Vec<u8>, String>;
     fn backward(b: &[u8]) -> Result<Self, String> where Self: Sized;     
@@ -57,10 +58,8 @@ struct SnapshotData {
 type StateSnapshots = BTreeMap<MemoryId, SnapshotData>;
 
 
-
 const STABLE_MEMORY_HEADER_SIZE_BYTES: u64 = 1024;
 
-const CONTROLLER_DOWNLOAD_STATE_SNAPSHOT_CHUNK_SIZE: usize = 1024*512*3;
 
 
 thread_local!{
@@ -71,7 +70,7 @@ thread_local!{
 
 }
 
-
+/// Gets the stable memory of the memory_id.  
 pub fn get_stable_memory(memory_id: MemoryId) -> VirtualMemory<DefaultMemoryImpl> {
     with(&MEMORY_MANAGER, |mgr| mgr.get(memory_id))
 }
@@ -79,7 +78,7 @@ pub fn get_stable_memory(memory_id: MemoryId) -> VirtualMemory<DefaultMemoryImpl
 
 
 
-
+/// Call this function in the canister_init method. This function registers the data structure with the memory_id for the upgrades and snapshots. 
 pub fn init<Data: 'static + Serializable>(s: &'static LocalKey<RefCell<Data>>, memory_id: MemoryId) {
     with_mut(&STATE_SNAPSHOTS, |state_snapshots| {
         state_snapshots.insert(
@@ -102,6 +101,8 @@ pub fn init<Data: 'static + Serializable>(s: &'static LocalKey<RefCell<Data>>, m
     });    
 }
 
+/// Call this function in the pre_upgrade hook. 
+/// Serializes each registered global variable into the corresponding stable-memory-id that it is registerd with.
 pub fn pre_upgrade() {
     with_mut(&STATE_SNAPSHOTS, |state_snapshots| {
         for (memory_id, d) in state_snapshots.iter_mut() {
@@ -116,6 +117,15 @@ pub fn pre_upgrade() {
     });
 }
 
+/// Call this function in the post_upgrade_hook. 
+/// Deserializes the data stored at the memory_id and loads it onto the global variable. 
+/// Then registers the global variable with the memory_id for the next upgrade and for the state-snapshots.
+///
+/// Use the `opt_old_as_new_convert` parameter to specify a function that converts an old data structure into a new one. 
+/// This is useful when changing the type of the data structure through an upgrade. 
+/// The function will deserialize the data into the old data structure type, 
+/// then convert it into the new data structure type, 
+/// and then load it onto the global variable.  
 pub fn post_upgrade<Data, OldData, F>(s: &'static LocalKey<RefCell<Data>>, memory_id: MemoryId, opt_old_as_new_convert: Option<F>) 
     where 
         Data: 'static + Serializable,
@@ -145,7 +155,7 @@ pub fn post_upgrade<Data, OldData, F>(s: &'static LocalKey<RefCell<Data>>, memor
 
 
 
-pub fn locate_minimum_memory(memory: &VirtualMemory<DefaultMemoryImpl>, want_memory_size_bytes: u64) -> Result<(),()> {
+fn locate_minimum_memory(memory: &VirtualMemory<DefaultMemoryImpl>, want_memory_size_bytes: u64) -> Result<(),()> {
     let memory_size_wasm_pages: u64 = memory.size();
     let memory_size_bytes: u64 = memory_size_wasm_pages * WASM_PAGE_SIZE_IN_BYTES as u64;
     
@@ -220,13 +230,13 @@ extern "C" fn controller_create_state_snapshot() {
 extern "C" fn controller_download_state_snapshot() {
     caller_is_controller_gaurd(&caller());
     
-    let (memory_id, chunk_i) = arg_data::<(u8, u64)>();
+    let (memory_id, offset, length) = arg_data::<(u8, u64, u64)>();
         
     with(&STATE_SNAPSHOTS, |state_snapshots| {
         match state_snapshots.get(&MemoryId::new(memory_id)) {
             None => trap("no data associated with this memory_id"),
             Some(d) => {
-                reply::<(Option<&Bytes/*&[u8]*/>,)>((d.snapshot.chunks(CONTROLLER_DOWNLOAD_STATE_SNAPSHOT_CHUNK_SIZE).nth(chunk_i as usize).map(Bytes::new),));
+                reply::<(&Bytes/*&[u8]*/,)>(( Bytes::new(&(d.snapshot[(offset as usize)..((offset + length) as usize)])), ));
             }
         }
     });
