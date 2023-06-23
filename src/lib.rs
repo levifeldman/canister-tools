@@ -1,4 +1,4 @@
-//! A Rust library for canisters on the [internet-computer](https://internet-computer.org). 
+//! A Rust library for canisters on the [internet-computer](https://internetcomputer.org). 
 //! 
 //! Features
 //! - Easy simple upgrade strategy.
@@ -65,7 +65,7 @@
 //!     post_upgrade
 //! };
 //! use serde::{Serialize, Deserialize};
-//! use cantools::{
+//! use canister_tools::{
 //!     MemoryId,
 //!     localkey::refcell::{with, with_mut},
 //! };
@@ -90,12 +90,12 @@
 //! #[init]
 //! fn init() {
 //!     
-//!     cantools::init(&DATA, DATA_UPGRADE_SERIALIZATION_MEMORY_ID);
+//!     canister_tools::init(&DATA, DATA_UPGRADE_SERIALIZATION_MEMORY_ID);
 //!     
 //!     with_mut(&DATA, |data| {
 //!         *data = Data{
 //!             field_one: String::from("Hi World"),
-//!             field_two: 55          
+//!             field_two: 55
 //!         }
 //!     });
 //!     
@@ -103,12 +103,12 @@
 //! 
 //! #[pre_upgrade]
 //! fn pre_upgrade() {
-//!     cantools::pre_upgrade();
+//!     canister_tools::pre_upgrade();
 //! }
 //! 
 //! #[post_upgrade]
 //! fn post_upgrade() {
-//!     cantools::post_upgrade(&DATA, DATA_UPGRADE_SERIALIZATION_MEMORY_ID, None::<fn(OldData) -> Data>);
+//!     canister_tools::post_upgrade(&DATA, DATA_UPGRADE_SERIALIZATION_MEMORY_ID, None::<fn(OldData) -> Data>);
 //! }
 //! 
 //! 
@@ -126,7 +126,6 @@
 //!         data.field_two = value;
 //!     });
 //! }
-//! 
 //! ```
 //! 
 //! 
