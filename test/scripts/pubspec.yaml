@@ -7,5 +7,4 @@ environment:
 
 dependencies:
     ic_tools: 2.0.1
-    msgpack_dart: 1.0.1
         

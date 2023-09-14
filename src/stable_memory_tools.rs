@@ -13,11 +13,12 @@ use ic_cdk::{
         is_controller,
         stable::WASM_PAGE_SIZE_IN_BYTES,
     },
-    export::Principal,
 };
 
+use candid::Principal;
+use bincode::Options;
 use serde_bytes::{ByteBuf, Bytes};
-
+use serde::{Serialize, Deserialize};
         
 use ic_stable_structures::{
     Memory,
@@ -26,24 +27,28 @@ use ic_stable_structures::{
 };
 pub use ic_stable_structures::memory_manager::MemoryId;
 
-use serde::{Serialize, Deserialize};
+
 
 use crate::localkey::refcell::{with, with_mut};
 
 
 /// A trait that specifies how the data structure will be serialized for the upgrades and for the snapshots.
-/// This trait is implemented with the message-pack serialization format for any structure that implements serde's Serialize and Deserialize traits.
+/// This trait is implemented with the [bincode](https://docs.rs/bincode/latest/bincode/index.html) serialization format for any type that implements serde's Serialize and Deserialize traits.
 pub trait Serializable {
     fn forward(&self) -> Result<Vec<u8>, String>;
     fn backward(b: &[u8]) -> Result<Self, String> where Self: Sized;     
 }
 
+fn bincode_config() -> impl bincode::Options {
+    bincode::DefaultOptions::new()
+}
+
 impl<T: Serialize + for<'a> Deserialize<'a>> Serializable for T {
     fn forward(&self) -> Result<Vec<u8>, String> {
-        rmp_serde::to_vec(self).map_err(|e| format!("{:?}", e))
+        bincode_config().serialize(self).map_err(|e| format!("{}", e))
     }
     fn backward(b: &[u8]) -> Result<Self, String> {
-        rmp_serde::from_slice::<T>(b).map_err(|e| format!("{:?}", e))
+        bincode_config().deserialize(b).map_err(|e| format!("{}", e))
     }
 }
 
@@ -71,7 +76,7 @@ thread_local!{
 }
 
 /// Gets the stable memory of the memory_id.  
-pub fn get_stable_memory(memory_id: MemoryId) -> VirtualMemory<DefaultMemoryImpl> {
+pub fn get_virtual_memory(memory_id: MemoryId) -> VirtualMemory<DefaultMemoryImpl> {
     with(&MEMORY_MANAGER, |mgr| mgr.get(memory_id))
 }
 
@@ -81,6 +86,9 @@ pub fn get_stable_memory(memory_id: MemoryId) -> VirtualMemory<DefaultMemoryImpl
 /// Call this function in the canister_init method. This function registers the data structure with the memory_id for the upgrades and snapshots. 
 pub fn init<Data: 'static + Serializable>(s: &'static LocalKey<RefCell<Data>>, memory_id: MemoryId) {
     with_mut(&STATE_SNAPSHOTS, |state_snapshots| {
+        if state_snapshots.contains_key(&memory_id) {
+            trap(&format!("memory-id: {:?} is already registered with the canister-tools library.", memory_id));
+        }
         state_snapshots.insert(
             memory_id,
             SnapshotData {
@@ -109,7 +117,7 @@ pub fn pre_upgrade() {
             d.snapshot = Vec::new(); // clear first so don't have to hold the deserialized data and old snapshot at the same time in the heap.
             d.snapshot = (d.serialize_data_fn)().unwrap();
             write_data_with_length_onto_the_stable_memory(
-                &get_stable_memory(*memory_id/*.clone()*/),
+                &get_virtual_memory(*memory_id/*.clone()*/),
                 STABLE_MEMORY_HEADER_SIZE_BYTES,
                 &d.snapshot
             ).unwrap();
@@ -134,7 +142,7 @@ pub fn post_upgrade<Data, OldData, F>(s: &'static LocalKey<RefCell<Data>>, memor
     {
                 
     let stable_data: Vec<u8> = read_stable_memory_bytes_with_length(
-        &get_stable_memory(memory_id),
+        &get_virtual_memory(memory_id),
         STABLE_MEMORY_HEADER_SIZE_BYTES,
     );
 
@@ -307,7 +315,7 @@ extern "C" fn controller_stable_memory_read() {
     
     let mut b: Vec<u8> = vec![0; length.try_into().unwrap()];
     
-    get_stable_memory(MemoryId::new(memory_id)).read(offset, &mut b);
+    get_virtual_memory(MemoryId::new(memory_id)).read(offset, &mut b);
     
     reply::<(ByteBuf,)>((ByteBuf::from(b),));
     
@@ -319,7 +327,7 @@ extern "C" fn controller_stable_memory_write() {
 
     let (memory_id, offset, b) = arg_data::<(u8, u64, ByteBuf)>();
         
-    get_stable_memory(MemoryId::new(memory_id)).write(offset, &b);
+    get_virtual_memory(MemoryId::new(memory_id)).write(offset, &b);
     
     reply::<()>(());
     
@@ -332,7 +340,7 @@ extern "C" fn controller_stable_memory_size() {
 
     let (memory_id,) = arg_data::<(u8,)>();
         
-    reply::<(u64,)>((get_stable_memory(MemoryId::new(memory_id)).size(),));
+    reply::<(u64,)>((get_virtual_memory(MemoryId::new(memory_id)).size(),));
     
 }
 
@@ -343,7 +351,7 @@ extern "C" fn controller_stable_memory_grow() {
 
     let (memory_id, pages) = arg_data::<(u8, u64)>();
         
-    reply::<(i64,)>((get_stable_memory(MemoryId::new(memory_id)).grow(pages),));
+    reply::<(i64,)>((get_virtual_memory(MemoryId::new(memory_id)).grow(pages),));
     
 }
 

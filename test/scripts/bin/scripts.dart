@@ -6,7 +6,6 @@ import 'package:ic_tools/ic_tools.dart';
 import 'package:ic_tools/common.dart';
 import 'package:ic_tools/tools.dart';
 import 'package:ic_tools/candid.dart';
-import 'package:msgpack_dart/msgpack_dart.dart';
 
 
 
@@ -46,24 +45,26 @@ Future<void> main(List<String> arguments) async {
         method_name: 'get_field_two',
     )) as Nat64).value.toInt(); 
     
-    dynamic msgpack_backwards = deserialize(await create_and_download_state_snapshot(canister_id));
+    Record snapshot_backwards = c_backwards_one(await create_and_download_state_snapshot(canister_id)) as Record;
     
-    if (msgpack_backwards[1] != 55 || 55 != get_field_two) {
+    if ((snapshot_backwards['field_two'] as Nat64).value.toInt() != 55 || 55 != get_field_two) {
         throw Exception('check this');
     }
     
-    msgpack_backwards[1] = 200321321;
+    int new_field_two = 200321321;
+    snapshot_backwards['field_two'] = Nat64(BigInt.from(new_field_two));
     
-    await load_state_snapshot(canister_id, serialize(msgpack_backwards));
+    await load_state_snapshot(canister_id, c_forwards_one(snapshot_backwards));
     
     get_field_two = (c_backwards_one(await Canister(canister_id).call(
         calltype: CallType.query,
         method_name: 'get_field_two',
     )) as Nat64).value.toInt(); 
     
-    if (get_field_two != 200321321) {
+    if (get_field_two != new_field_two) {
         throw Exception('check this');
     }
+    
     
     await Canister(canister_id).call(
         calltype: CallType.call,
@@ -72,9 +73,9 @@ Future<void> main(List<String> arguments) async {
     ); 
     
     Uint8List snapshot = await create_and_download_state_snapshot(canister_id);
-    msgpack_backwards = deserialize(snapshot);
+    snapshot_backwards = c_backwards_one(snapshot) as Record;
     
-    if (msgpack_backwards[1] != 102154646898) {
+    if ((snapshot_backwards['field_two'] as Nat64).value.toInt() != 102154646898) {
         throw Exception('check this');
     }
     

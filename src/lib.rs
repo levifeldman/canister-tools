@@ -7,6 +7,10 @@
 //! Each global data structure is set and registered with a [MemoryId] in the canister_init hook and in the canister_post_upgrade hook. 
 //! On an upgrade, the library will serialize the registered data structures into the 
 //! corresponding [MemoryId].
+//!
+//! For a global data type to be serializable, it must implement the [Serializable] trait.
+//! Types that implement serde's `Serialize` and `Deserialize` traits auto-implement the [Serializable] trait with the [bincode](https://docs.rs/bincode/latest/bincode/index.html) binary serialization format. 
+//!
 //! 
 //! For the safety and to make sure that your data is always accessible even if something goes wrong in the 
 //! pre_upgrade hook or elsewhere, this library creates canister methods that can be used in those cases 
@@ -64,11 +68,12 @@
 //!     pre_upgrade,
 //!     post_upgrade
 //! };
-//! use serde::{Serialize, Deserialize};
+//! use serde::{Serialize};
 //! use canister_tools::{
 //!     MemoryId,
 //!     localkey::refcell::{with, with_mut},
 //! };
+//! use candid::{CandidType, Deserialize};
 //! 
 //! 
 //! const DATA_UPGRADE_SERIALIZATION_MEMORY_ID: MemoryId = MemoryId::new(0);
@@ -77,11 +82,21 @@
 //! #[derive(Serialize, Deserialize, Default)]
 //! struct OldData {}
 //! 
-//! #[derive(Serialize, Deserialize, Default)]
+//! #[derive(CandidType, Deserialize, Default)]
 //! struct Data {
 //!     field_one: String,
 //!     field_two: u64,
 //! }
+//! 
+//! impl canister_tools::Serializable for Data {
+//!     fn forward(&self) -> Result<Vec<u8>, String> {
+//!         candid::encode_one(self).map_err(|e| format!("{:?}", e))
+//!     }
+//!     fn backward(b: &[u8]) -> Result<Self, String> {
+//!         candid::decode_one(b).map_err(|e| format!("{:?}", e))
+//!     }   
+//! }
+//! 
 //! 
 //! thread_local! {
 //!     static DATA: RefCell<Data> = RefCell::new(Data::default());
