@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'dart:io';
 import 'dart:math';
+import 'dart:convert';
 
 import 'package:ic_tools/ic_tools.dart';
 import 'package:ic_tools/common.dart';
@@ -40,21 +41,26 @@ Future<void> main(List<String> arguments) async {
         throw Exception('check this');
     }
     
+    String field_one = 'Hi World'; 
+    if (utf8.decode(state_snapshot.sublist(1,1+field_one.length)) != field_one) {
+        throw Exception('check this');
+    }
+        
     int get_field_two = (c_backwards_one(await Canister(canister_id).call(
         calltype: CallType.query,
         method_name: 'get_field_two',
     )) as Nat64).value.toInt(); 
     
-    Record snapshot_backwards = c_backwards_one(await create_and_download_state_snapshot(canister_id)) as Record;
+    int snapshot_field_two = (await create_and_download_state_snapshot(canister_id)).last;
     
-    if ((snapshot_backwards['field_two'] as Nat64).value.toInt() != 55 || 55 != get_field_two) {
+    if (snapshot_field_two != 55 || 55 != get_field_two) {
         throw Exception('check this');
     }
     
-    int new_field_two = 200321321;
-    snapshot_backwards['field_two'] = Nat64(BigInt.from(new_field_two));
+    int new_field_two = 54;
+    state_snapshot[state_snapshot.length-1] = new_field_two;
     
-    await load_state_snapshot(canister_id, c_forwards_one(snapshot_backwards));
+    await load_state_snapshot(canister_id, state_snapshot);
     
     get_field_two = (c_backwards_one(await Canister(canister_id).call(
         calltype: CallType.query,
@@ -69,13 +75,13 @@ Future<void> main(List<String> arguments) async {
     await Canister(canister_id).call(
         calltype: CallType.call,
         method_name: 'set_field_two',
-        put_bytes: c_forwards_one(Nat64(BigInt.from(102154646898)))
+        put_bytes: c_forwards_one(Nat64(BigInt.from(53)))
     ); 
     
     Uint8List snapshot = await create_and_download_state_snapshot(canister_id);
-    snapshot_backwards = c_backwards_one(snapshot) as Record;
+    snapshot_field_two = snapshot.last;
     
-    if ((snapshot_backwards['field_two'] as Nat64).value.toInt() != 102154646898) {
+    if (snapshot_field_two != 53) {
         throw Exception('check this');
     }
     

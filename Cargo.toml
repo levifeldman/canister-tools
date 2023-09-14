@@ -1,6 +1,6 @@
 [package]
 name = "canister-tools"
-version = "0.1.3"
+version = "0.1.4"
 edition = "2021"
 authors = ["Levi Feldman <levifeldman37@gmail.com>"]
 description = "Tools for the canisters on the internet-computer, featuring simple upgrades and data safety state snapshot upload/download features."

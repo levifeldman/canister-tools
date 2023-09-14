@@ -13,4 +13,4 @@ crate-type = ["cdylib"]
 canister-tools = { path = "../../" }
 ic-cdk = "0.8.1"
 serde = "1.0.164"
-candid = "0.9.6"
+

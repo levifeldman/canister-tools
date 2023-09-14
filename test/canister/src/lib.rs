@@ -6,52 +6,39 @@ use ic_cdk::{
     pre_upgrade,
     post_upgrade
 };
-use serde::{Serialize};
+use serde::{Serialize, Deserialize};
 use canister_tools::{
     MemoryId,
     localkey::refcell::{with, with_mut},
 };
-use candid::{CandidType, Deserialize};
+
 
 
 const DATA_UPGRADE_SERIALIZATION_MEMORY_ID: MemoryId = MemoryId::new(0);
 
 
-#[derive(Serialize, Deserialize, Default)]
-struct OldData {}
+#[derive(Serialize, Deserialize)]
+struct Stub;
 
-#[derive(CandidType, Deserialize, Default)]
+#[derive(Serialize, Deserialize)]
 struct Data {
     field_one: String,
     field_two: u64,
 }
 
-impl canister_tools::Serializable for Data {
-    fn forward(&self) -> Result<Vec<u8>, String> {
-        candid::encode_one(self).map_err(|e| format!("{:?}", e))
-    }
-    fn backward(b: &[u8]) -> Result<Self, String> {
-        candid::decode_one(b).map_err(|e| format!("{:?}", e))
-    }   
-}
-
 
 thread_local! {
-    static DATA: RefCell<Data> = RefCell::new(Data::default());
+    static DATA: RefCell<Data> = RefCell::new(
+        Data{
+            field_one: String::from("Hi World"),
+            field_two: 55
+        }
+    );
 }
 
 #[init]
 fn init() {
-    
     canister_tools::init(&DATA, DATA_UPGRADE_SERIALIZATION_MEMORY_ID);
-    
-    with_mut(&DATA, |data| {
-        *data = Data{
-            field_one: String::from("Hi World"),
-            field_two: 55
-        }
-    });
-    
 }
 
 #[pre_upgrade]
@@ -61,7 +48,7 @@ fn pre_upgrade() {
 
 #[post_upgrade]
 fn post_upgrade() {
-    canister_tools::post_upgrade(&DATA, DATA_UPGRADE_SERIALIZATION_MEMORY_ID, None::<fn(OldData) -> Data>);
+    canister_tools::post_upgrade(&DATA, DATA_UPGRADE_SERIALIZATION_MEMORY_ID, None::<fn(Stub) -> Data>);
 }
 
 

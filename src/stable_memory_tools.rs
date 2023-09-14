@@ -107,6 +107,8 @@ pub fn init<Data: 'static + Serializable>(s: &'static LocalKey<RefCell<Data>>, m
             }
         ); 
     });    
+    // tests that the pre-upgrade works and takes a snapshot of this first-state.
+    pre_upgrade();
 }
 
 /// Call this function in the pre_upgrade hook. 
@@ -163,7 +165,7 @@ pub fn post_upgrade<Data, OldData, F>(s: &'static LocalKey<RefCell<Data>>, memor
 
 
 
-fn locate_minimum_memory(memory: &VirtualMemory<DefaultMemoryImpl>, want_memory_size_bytes: u64) -> Result<(),()> {
+pub fn locate_minimum_memory(memory: &VirtualMemory<DefaultMemoryImpl>, want_memory_size_bytes: u64) -> Result<(),()> {
     let memory_size_wasm_pages: u64 = memory.size();
     let memory_size_bytes: u64 = memory_size_wasm_pages * WASM_PAGE_SIZE_IN_BYTES as u64;
     
