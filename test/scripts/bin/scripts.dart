@@ -40,9 +40,10 @@ Future<void> main(List<String> arguments) async {
     if (aresamebytes(state_snapshot, state_snapshot_2) == false) {
         throw Exception('check this');
     }
+        
+    Record state_snapshot_backwards = c_backwards_one(state_snapshot) as Record;
     
-    String field_one = 'Hi World'; 
-    if (utf8.decode(state_snapshot.sublist(1,1+field_one.length)) != field_one) {
+    if ((state_snapshot_backwards['field_one'] as Text).value != 'Hi World') {
         throw Exception('check this');
     }
         
@@ -51,16 +52,17 @@ Future<void> main(List<String> arguments) async {
         method_name: 'get_field_two',
     )) as Nat64).value.toInt(); 
     
-    int snapshot_field_two = (await create_and_download_state_snapshot(canister_id)).last;
+    
+    int snapshot_field_two = (state_snapshot_backwards['field_two'] as Nat64).value.toInt();
     
     if (snapshot_field_two != 55 || 55 != get_field_two) {
         throw Exception('check this');
     }
     
     int new_field_two = 54;
-    state_snapshot[state_snapshot.length-1] = new_field_two;
+    state_snapshot_backwards['field_two'] = Nat64(BigInt.from(new_field_two));
     
-    await load_state_snapshot(canister_id, state_snapshot);
+    await load_state_snapshot(canister_id, c_forwards_one(state_snapshot_backwards));
     
     get_field_two = (c_backwards_one(await Canister(canister_id).call(
         calltype: CallType.query,
@@ -79,9 +81,8 @@ Future<void> main(List<String> arguments) async {
     ); 
     
     Uint8List snapshot = await create_and_download_state_snapshot(canister_id);
-    snapshot_field_two = snapshot.last;
     
-    if (snapshot_field_two != 53) {
+    if (((c_backwards_one(snapshot) as Record)['field_two'] as Nat64).value.toInt() != 53) {
         throw Exception('check this');
     }
     

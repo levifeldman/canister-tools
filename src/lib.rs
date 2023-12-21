@@ -9,7 +9,7 @@
 //! corresponding [MemoryId].
 //!
 //! For a global data type to be serializable, it must implement the [Serializable] trait.
-//! Types that implement serde's `Serialize` and `Deserialize` traits auto-implement the [Serializable] trait with the [bincode](https://docs.rs/bincode/latest/bincode/index.html) binary serialization format. 
+//! Types that implement candid's `CandidType` and `Deserialize` traits auto-implement the [Serializable] trait with the [candid](https://docs.rs/candid/latest/candid/index.html) binary serialization format. 
 //!
 //! 
 //! For the safety and to make sure that your data is always accessible even if something goes wrong in the 
@@ -68,7 +68,7 @@
 //!     pre_upgrade,
 //!     post_upgrade
 //! };
-//! use serde::{Serialize, Deserialize};
+//! use candid::{CandidType, Deserialize};
 //! use canister_tools::{
 //!     MemoryId,
 //!     localkey::refcell::{with, with_mut},
@@ -79,10 +79,7 @@
 //! const DATA_UPGRADE_SERIALIZATION_MEMORY_ID: MemoryId = MemoryId::new(0);
 //! 
 //! 
-//! #[derive(Serialize, Deserialize)]
-//! struct Stub;
-//! 
-//! #[derive(Serialize, Deserialize)]
+//! #[derive(CandidType, Deserialize)]
 //! struct Data {
 //!     field_one: String,
 //!     field_two: u64,
@@ -110,7 +107,7 @@
 //! 
 //! #[post_upgrade]
 //! fn post_upgrade() {
-//!     canister_tools::post_upgrade(&DATA, DATA_UPGRADE_SERIALIZATION_MEMORY_ID, None::<fn(Stub) -> Data>);
+//!     canister_tools::post_upgrade(&DATA, DATA_UPGRADE_SERIALIZATION_MEMORY_ID, None::<fn(Data) -> Data>);
 //! }
 //! 
 //! 

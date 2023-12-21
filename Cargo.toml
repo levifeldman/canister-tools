@@ -1,6 +1,6 @@
 [package]
 name = "canister-tools"
-version = "0.1.4"
+version = "0.2.0"
 edition = "2021"
 authors = ["Levi Feldman <levifeldman37@gmail.com>"]
 description = "Tools for the canisters on the internet-computer, featuring simple upgrades and data safety state snapshot upload/download features."
@@ -14,8 +14,8 @@ categories = ["cryptography::cryptocurrencies", "data-structures", "memory-manag
 
 [dependencies]
 ic-cdk = "0.10.0"
-bincode = "1.3.3"
 ic-stable-structures = "0.5.4"
-serde = "1.0.164"
+serde = "1.0.193"
 serde_bytes = "0.11.9"
-candid = "0.9.6"
+candid = "0.9.11"
+

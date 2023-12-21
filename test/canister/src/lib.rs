@@ -6,7 +6,7 @@ use ic_cdk::{
     pre_upgrade,
     post_upgrade
 };
-use serde::{Serialize, Deserialize};
+use candid::{CandidType, Deserialize};
 use canister_tools::{
     MemoryId,
     localkey::refcell::{with, with_mut},
@@ -17,10 +17,7 @@ use canister_tools::{
 const DATA_UPGRADE_SERIALIZATION_MEMORY_ID: MemoryId = MemoryId::new(0);
 
 
-#[derive(Serialize, Deserialize)]
-struct Stub;
-
-#[derive(Serialize, Deserialize)]
+#[derive(CandidType, Deserialize)]
 struct Data {
     field_one: String,
     field_two: u64,
@@ -48,7 +45,7 @@ fn pre_upgrade() {
 
 #[post_upgrade]
 fn post_upgrade() {
-    canister_tools::post_upgrade(&DATA, DATA_UPGRADE_SERIALIZATION_MEMORY_ID, None::<fn(Stub) -> Data>);
+    canister_tools::post_upgrade(&DATA, DATA_UPGRADE_SERIALIZATION_MEMORY_ID, None::<fn(Data) -> Data>);
 }
 
 

@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::thread::LocalKey;
 use std::collections::BTreeMap;
-        
+
 use ic_cdk::{
     caller,
     trap,
@@ -15,10 +15,8 @@ use ic_cdk::{
     },
 };
 
-use candid::Principal;
-use bincode::Options;
+use candid::{CandidType, Deserialize};
 use serde_bytes::{ByteBuf, Bytes};
-use serde::{Serialize, Deserialize};
         
 use ic_stable_structures::{
     Memory,
@@ -33,25 +31,20 @@ use crate::localkey::refcell::{with, with_mut};
 
 
 /// A trait that specifies how the data structure will be serialized for the upgrades and for the snapshots.
-/// This trait is implemented with the [bincode](https://docs.rs/bincode/latest/bincode/index.html) serialization format for any type that implements serde's Serialize and Deserialize traits.
+/// This trait is implemented with the [candid](https://docs.rs/candid/latest/candid/index.html) serialization format for any type that implements the CandidType and Deserialize traits.
 pub trait Serializable {
     fn forward(&self) -> Result<Vec<u8>, String>;
     fn backward(b: &[u8]) -> Result<Self, String> where Self: Sized;     
 }
 
-fn bincode_config() -> impl bincode::Options {
-    bincode::DefaultOptions::new()
-}
-
-impl<T: Serialize + for<'a> Deserialize<'a>> Serializable for T {
+impl<T: CandidType + for<'a> Deserialize<'a>> Serializable for T {
     fn forward(&self) -> Result<Vec<u8>, String> {
-        bincode_config().serialize(self).map_err(|e| format!("{}", e))
+        candid::encode_one(self).map_err(|e| format!("{:?}", e))
     }
     fn backward(b: &[u8]) -> Result<Self, String> {
-        bincode_config().deserialize(b).map_err(|e| format!("{}", e))
+        candid::decode_one(b).map_err(|e| format!("{:?}", e))
     }
 }
-
 
 
 struct SnapshotData {
@@ -69,7 +62,7 @@ const STABLE_MEMORY_HEADER_SIZE_BYTES: u64 = 1024;
 
 thread_local!{
     
-    static MEMORY_MANAGER: RefCell<MemoryManager<DefaultMemoryImpl>> = RefCell::new(MemoryManager::init(DefaultMemoryImpl::default()));
+    static MEMORY_MANAGER: RefCell<MemoryManager<DefaultMemoryImpl>> = RefCell::new(MemoryManager::init_with_bucket_size(DefaultMemoryImpl::default(), 1));
     
     static STATE_SNAPSHOTS: RefCell<StateSnapshots> = RefCell::new(StateSnapshots::new());
 
@@ -89,6 +82,7 @@ pub fn init<Data: 'static + Serializable>(s: &'static LocalKey<RefCell<Data>>, m
         if state_snapshots.contains_key(&memory_id) {
             trap(&format!("memory-id: {:?} is already registered with the canister-tools library.", memory_id));
         }
+        
         state_snapshots.insert(
             memory_id,
             SnapshotData {
@@ -205,19 +199,18 @@ fn read_stable_memory_bytes_with_length(serialization_memory: &VirtualMemory<Def
 
 
 
-fn caller_is_controller_gaurd(caller: &Principal) {
-    if is_controller(caller) == false {
+
+// ---- STATE-SNAPSHOT CONTROLLER METHODS ---------
+
+fn caller_is_controller_gaurd() {
+    if is_controller(&caller()) == false {
         trap("Caller must be a controller for this method.");
     }
 }
 
-
-
-// ---- STATE-SNAPSHOT CONTROLLER METHODS ---------
-
 #[export_name = "canister_update controller_create_state_snapshot"]
 extern "C" fn controller_create_state_snapshot() {
-    caller_is_controller_gaurd(&caller());
+    caller_is_controller_gaurd();
         
     let memory_id: MemoryId = MemoryId::new(arg_data::<(u8,)>().0);
     
@@ -238,7 +231,7 @@ extern "C" fn controller_create_state_snapshot() {
 
 #[export_name = "canister_query controller_download_state_snapshot"]
 extern "C" fn controller_download_state_snapshot() {
-    caller_is_controller_gaurd(&caller());
+    caller_is_controller_gaurd();
     
     let (memory_id, offset, length) = arg_data::<(u8, u64, u64)>();
         
@@ -254,7 +247,7 @@ extern "C" fn controller_download_state_snapshot() {
 
 #[export_name = "canister_update controller_clear_state_snapshot"]
 extern "C" fn controller_clear_state_snapshot() {
-    caller_is_controller_gaurd(&caller());
+    caller_is_controller_gaurd();
     
     let memory_id: MemoryId = MemoryId::new(arg_data::<(u8,)>().0);
     
@@ -272,7 +265,7 @@ extern "C" fn controller_clear_state_snapshot() {
 
 #[export_name = "canister_update controller_append_state_snapshot"]
 extern "C" fn controller_append_state_snapshot() {
-    caller_is_controller_gaurd(&caller());
+    caller_is_controller_gaurd();
     
     let (memory_id, mut bytes) = arg_data::<(u8, ByteBuf)>();
     
@@ -290,7 +283,7 @@ extern "C" fn controller_append_state_snapshot() {
 
 #[export_name = "canister_update controller_load_state_snapshot"]
 extern "C" fn controller_load_state_snapshot() {
-    caller_is_controller_gaurd(&caller());
+    caller_is_controller_gaurd();
     
     let memory_id: MemoryId = MemoryId::new(arg_data::<(u8,)>().0);
     
@@ -311,7 +304,7 @@ extern "C" fn controller_load_state_snapshot() {
 
 #[export_name = "canister_query controller_stable_memory_read"]
 extern "C" fn controller_stable_memory_read() {
-    caller_is_controller_gaurd(&caller());
+    caller_is_controller_gaurd();
     
     let (memory_id, offset, length) = arg_data::<(u8, u64, u64)>();
     
@@ -325,7 +318,7 @@ extern "C" fn controller_stable_memory_read() {
 
 #[export_name = "canister_update controller_stable_memory_write"]
 extern "C" fn controller_stable_memory_write() {
-    caller_is_controller_gaurd(&caller());
+    caller_is_controller_gaurd();
 
     let (memory_id, offset, b) = arg_data::<(u8, u64, ByteBuf)>();
         
@@ -338,7 +331,7 @@ extern "C" fn controller_stable_memory_write() {
 
 #[export_name = "canister_query controller_stable_memory_size"]
 extern "C" fn controller_stable_memory_size() {
-    caller_is_controller_gaurd(&caller());
+    caller_is_controller_gaurd();
 
     let (memory_id,) = arg_data::<(u8,)>();
         
@@ -349,7 +342,7 @@ extern "C" fn controller_stable_memory_size() {
 
 #[export_name = "canister_update controller_stable_memory_grow"]
 extern "C" fn controller_stable_memory_grow() {
-    caller_is_controller_gaurd(&caller());
+    caller_is_controller_gaurd();
 
     let (memory_id, pages) = arg_data::<(u8, u64)>();
         
