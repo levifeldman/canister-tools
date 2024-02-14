@@ -1,3 +1,6 @@
+## 0.2.2
+ - Bump ic-stable-structures = "0.6.2", candid = "0.10.3", ic-cdk = "0.12.1" 
+
 ## 0.2.1
  - Bump ic-stable-structures = "0.6.1" 
 
